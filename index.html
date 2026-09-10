@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сессия · дашборд</title>
+<style>
+:root{--bg:#0d0d0d;--surface:#161616;--surface2:#1e1e1e;--ink:#f0ede8;--ink2:#888;--ink3:#444;--green:#4ade80;--yellow:#facc15;--red:#f87171;--blue:#60a5fa;--accent:#e8d5b0;--r:8px}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,"Helvetica Neue",sans-serif}
+button{cursor:pointer;font-family:inherit;border:none}
+input,textarea,select{font-family:inherit}
+#app{display:flex;flex-direction:column;height:100vh;max-width:480px;margin:0 auto}
+#tabbar{display:flex;border-bottom:1px solid #222;background:var(--bg);flex:none}
+.tab-btn{flex:1;padding:12px 4px 10px;font-size:12px;letter-spacing:.04em;background:none;color:var(--ink3);border-bottom:2px solid transparent;transition:color .15s}
+.tab-btn.active{color:var(--ink);border-bottom-color:var(--green)}
+.tab-btn .ti{font-size:17px;display:block;margin-bottom:3px}
+.page{display:none;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.page.active{display:flex;flex-direction:column}
+.page-inner{padding:16px 18px 24px;display:flex;flex-direction:column;gap:10px;flex:1}
+.card{background:var(--surface);border-radius:var(--r);padding:14px 16px}
+.label{font-size:10px;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.label-accent{color:var(--accent)}
+.bar-wrap{height:3px;background:#222;border-radius:2px;overflow:hidden;margin-top:8px}
+.bar-fill{height:100%;border-radius:2px;transition:width 1s linear,background .4s}
+.bar-green{background:var(--green)}.bar-yellow{background:var(--yellow)}.bar-red{background:var(--red)}.bar-blue{background:var(--blue)}
+.btn{padding:11px 16px;border-radius:var(--r);font-size:14px;letter-spacing:.02em;transition:opacity .15s,transform .1s;border:none}
+.btn:active{transform:scale(.96);opacity:.8}
+.btn-primary{background:var(--ink);color:var(--bg)}
+.btn-ghost{background:var(--surface2);color:var(--ink2)}
+.field-group{display:flex;flex-direction:column;gap:6px}
+.field-label{font-size:11px;color:var(--ink2)}
+.field{background:var(--surface2);border:1px solid #333;border-radius:6px;color:var(--ink);font-size:14px;padding:9px 11px;width:100%;transition:border-color .15s}
+.field:focus{outline:none;border-color:var(--blue)}
+.field-time{width:64px;text-align:center;font-size:18px;font-variant-numeric:tabular-nums;padding:8px 6px}
+.colon{color:var(--ink3);font-size:20px}
+.time-inputs{display:flex;align-items:center;gap:8px;margin-top:0}
+.small-note{font-size:11px;color:var(--ink3);line-height:1.4}
+
+/* FACILITATOR */
+#header{display:flex;justify-content:space-between;align-items:center;padding:10px 18px 0}
+#session-label{font-size:11px;color:var(--ink3)}
+#clock-real{font-size:13px;color:var(--ink2);font-variant-numeric:tabular-nums}
+#block-name{font-size:12px;color:var(--ink2);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#countdown{font-size:68px;line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--green);transition:color .4s;font-weight:600}
+#countdown.warn{color:var(--yellow)}
+#countdown.urgent{color:var(--red);animation:pulse 1s ease infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+#time-sub{display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);margin-top:6px;font-variant-numeric:tabular-nums}
+.ctrl-row{display:flex;gap:8px}
+.ctrl-btn{flex:1;padding:13px 0;border-radius:var(--r);font-size:14px;background:var(--surface2);color:var(--ink2);border:none}
+#btn-playpause{flex:2;background:var(--ink);color:var(--bg);font-size:15px}
+#hint-box{background:var(--surface);border-left:3px solid var(--accent);border-radius:0 var(--r) var(--r) 0;padding:11px 14px;font-size:13.5px;color:var(--accent);line-height:1.5;white-space:pre-line;min-height:50px}
+#finish-bar{background:var(--surface);border-radius:var(--r);padding:11px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+#finish-main{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+#finish-icon{font-size:15px;flex:none}
+#finish-text{font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#finish-delta{font-size:12px;font-variant-numeric:tabular-nums;padding:2px 8px;border-radius:4px;white-space:nowrap;flex:none}
+#finish-delta.ahead{background:rgba(74,222,128,.15);color:var(--green)}
+#finish-delta.behind{background:rgba(248,113,113,.15);color:var(--red)}
+#finish-delta.exact{background:rgba(255,255,255,.06);color:var(--ink2)}
+#btn-promise{background:none;border:1px solid #333;color:var(--ink3);font-size:11px;padding:5px 9px;border-radius:5px;white-space:nowrap;flex:none}
+#btn-promise:hover{border-color:#666;color:var(--ink)}
+#promise-panel{background:var(--surface);border-radius:var(--r);padding:12px 14px;display:none}
+#total-row{display:flex;gap:10px;align-items:center}
+#total-label{font-size:11px;color:var(--ink3);white-space:nowrap;font-variant-numeric:tabular-nums}
+#total-end{font-size:11px;color:var(--ink3);white-space:nowrap}
+#block-list{display:flex;flex-direction:column;gap:2px}
+.brow{display:flex;align-items:baseline;gap:8px;padding:7px 10px;border-radius:6px;cursor:pointer;transition:background .12s}
+.brow:hover{background:var(--surface)}
+.brow.done{opacity:.3}
+.brow.active{background:var(--surface2);border-left:3px solid var(--green);padding-left:7px}
+.brow.active .bn{color:var(--ink);font-weight:600;font-size:16px}
+.bt{font-size:12px;color:var(--ink3);font-variant-numeric:tabular-nums;min-width:42px}
+.bn{flex:1;font-size:15px;color:var(--ink2);line-height:1.3}
+.bd{font-size:12px;color:var(--ink3);min-width:28px;text-align:right}
+#balint-panel{background:var(--surface);border-radius:var(--r);padding:12px 14px;display:none}
+#balint-panel.show{display:block}
+.bstep{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid #1e1e1e;cursor:pointer}
+.bstep:last-child{border-bottom:none}
+.bsn{font-size:11px;color:var(--ink3);width:16px;flex:none;padding-top:2px}
+.bsname{flex:1;font-size:12.5px;color:var(--ink2);line-height:1.3}
+.bsdur{font-size:11px;color:var(--ink3);flex:none}
+.bstep.bs-active .bsname{color:var(--accent);font-weight:600}
+.bstep.bs-active .bsn{color:var(--accent)}
+.bstep.bs-done .bsname{color:var(--ink3);text-decoration:line-through}
+
+/* ADMIN */
+.admin-section{background:var(--surface);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.admin-title{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:2px}
+.block-editor{display:flex;flex-direction:column;gap:6px;padding:10px 0;border-bottom:1px solid #1e1e1e}
+.block-editor:last-child{border-bottom:none}
+.be-row{display:flex;gap:6px;align-items:flex-start}
+.be-index{font-size:11px;color:var(--ink3);width:22px;padding-top:10px;text-align:right;flex:none}
+.be-fields{flex:1;display:flex;flex-direction:column;gap:5px}
+.be-top{display:flex;gap:6px}
+.be-name{flex:1}
+.be-dur{width:60px;text-align:center}
+.be-hint{resize:none;min-height:48px;font-size:12px;line-height:1.45}
+.be-del{background:none;border:none;color:var(--ink3);font-size:18px;padding:6px 4px;align-self:flex-start;flex:none;margin-top:2px;cursor:pointer}
+.be-del:hover{color:var(--red)}
+.btn-add-sub{background:none;border:1px dashed #333;color:var(--ink3);border-radius:6px;padding:8px;font-size:12px;width:100%;margin-top:6px;cursor:pointer;transition:border-color .15s,color .15s}
+.btn-add-sub:hover{border-color:#555;color:var(--ink)}
+.drag-handle{color:var(--ink3);font-size:16px;cursor:grab;padding:8px 4px;align-self:flex-start;flex:none;margin-top:4px;touch-action:none;user-select:none}
+.drag-handle:active{cursor:grabbing}
+.block-editor.dragging{opacity:.4;background:var(--surface2)}
+.block-editor.drag-over{border-top:2px solid var(--blue)}
+#btn-add-block{background:none;border:1px dashed #333;color:var(--ink3);border-radius:6px;padding:10px;font-size:13px;width:100%;transition:border-color .15s,color .15s}
+#btn-add-block:hover{border-color:#555;color:var(--ink)}
+.balint-toggle{display:flex;align-items:center;justify-content:space-between}
+.toggle{width:36px;height:20px;background:#333;border-radius:10px;position:relative;cursor:pointer;transition:background .2s;flex:none}
+.toggle.on{background:var(--green)}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;background:#fff;border-radius:50%;transition:transform .2s}
+.toggle.on::after{transform:translateX(16px)}
+
+/* AUDIENCE */
+#p-stage{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:28px 24px;gap:16px;text-align:center}
+#p-block-label{font-size:11px;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase}
+#p-block-name{font-size:22px;font-weight:600;line-height:1.25;color:var(--ink)}
+#p-countdown{font-size:88px;font-weight:700;letter-spacing:-.04em;font-variant-numeric:tabular-nums;color:var(--green);transition:color .4s;line-height:1}
+#p-countdown.warn{color:var(--yellow)}
+#p-countdown.urgent{color:var(--red);animation:pulse 1s ease infinite}
+#p-bar-wrap{width:100%;height:4px;background:#222;border-radius:2px;overflow:hidden}
+#p-bar{height:100%;border-radius:2px;transition:width 1s linear,background .4s;background:var(--green)}
+#p-bar.warn{background:var(--yellow)}
+#p-bar.urgent{background:var(--red)}
+#p-hint{background:var(--surface);border-left:3px solid var(--accent);border-radius:0 var(--r) var(--r) 0;padding:12px 16px;font-size:14px;color:var(--accent);line-height:1.55;text-align:left;width:100%;white-space:pre-line}
+#p-footer{padding:14px 24px;border-top:1px solid #1a1a1a;display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);font-variant-numeric:tabular-nums;flex:none}
+
+#warn-flash{position:fixed;inset:0;background:rgba(249,115,22,.1);pointer-events:none;opacity:0;transition:opacity .3s;z-index:99}
+#warn-flash.show{opacity:1}
+.page::-webkit-scrollbar{width:3px}
+.page::-webkit-scrollbar-thumb{background:#222;border-radius:2px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="tabbar">
+    <button class="tab-btn active" onclick="showTab('facilitator')" id="tbtn-facilitator"><span class="ti">⏱</span>Ведущий</button>
+    <button class="tab-btn" onclick="showTab('admin')" id="tbtn-admin"><span class="ti">⚙️</span>Настройка</button>
+    <button class="tab-btn" onclick="showTab('audience')" id="tbtn-audience"><span class="ti">👥</span>Участники</button>
+  </div>
+
+  <!-- PAGE 1: FACILITATOR -->
+  <div class="page active" id="page-facilitator">
+    <div id="header"><span id="session-label">Сессия</span><span id="clock-real">00:00:00</span></div>
+    <div class="page-inner">
+      <div class="card">
+        <div id="block-name">—</div>
+        <div id="countdown">00:00</div>
+        <div class="bar-wrap"><div class="bar-fill bar-green" id="prog-bar"></div></div>
+        <div id="time-sub"><span id="time-elapsed">0:00 прошло</span><span id="time-planned">—</span></div>
+      </div>
+      <div id="hint-box">Настройте на вкладке Настройка, затем нажмите ▶ старт</div>
+      <div class="ctrl-row">
+        <button class="ctrl-btn" onclick="prevBlock()">← назад</button>
+        <button class="ctrl-btn" id="btn-playpause" onclick="togglePlay()">▶ старт</button>
+        <button class="ctrl-btn" onclick="nextBlock()">вперёд →</button>
+      </div>
+      <div id="finish-bar">
+        <div id="finish-main">
+          <span id="finish-icon">⏳</span>
+          <span id="finish-text">закончим в —</span>
+          <span id="finish-delta" class="exact">—</span>
+        </div>
+        <button id="btn-promise" onclick="togglePromise()">обещание</button>
+      </div>
+      <div id="promise-panel">
+        <div class="label">Обещанное время окончания</div>
+        <div class="time-inputs" style="margin-top:8px">
+          <input class="field field-time" id="ph" type="number" min="0" max="23" value="16">
+          <span class="colon">:</span>
+          <input class="field field-time" id="pm" type="number" min="0" max="59" value="00">
+          <button class="btn btn-primary" style="padding:9px 16px" onclick="applyPromise()">ок</button>
+          <button class="btn btn-ghost" style="padding:9px 12px" onclick="togglePromise()">×</button>
+        </div>
+        <div class="small-note" style="margin-top:8px">По умолчанию — плановое окончание из тайминга</div>
+      </div>
+      <div id="total-row">
+        <span id="total-label">0 / — мин</span>
+        <div class="bar-wrap" style="flex:1;margin-top:0"><div class="bar-fill bar-blue" id="total-bar" style="width:0%"></div></div>
+        <span id="total-end">до —</span>
+      </div>
+      <div id="block-list"></div>
+      <div id="balint-panel">
+        <div class="label label-accent">Балинтовский круг · протокол</div>
+        <div id="balint-steps"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 2: ADMIN -->
+  <div class="page" id="page-admin">
+    <div class="page-inner">
+      <div class="admin-section">
+        <div class="admin-title">Мероприятие</div>
+        <div class="field-group">
+          <div class="field-label">Название сессии</div>
+          <input class="field" id="cfg-title" type="text" value="Служба продаж · 10 сентября" oninput="applyMeta()">
+        </div>
+        <div class="field-group">
+          <div class="field-label">Обещанное время окончания</div>
+          <div class="time-inputs">
+            <input class="field field-time" id="cfg-ph" type="number" value="16" oninput="applyMeta()">
+            <span class="colon">:</span>
+            <input class="field field-time" id="cfg-pm" type="number" value="00" oninput="applyMeta()">
+          </div>
+        </div>
+      </div>
+      <div class="admin-section">
+        <div class="admin-title">Блоки программы</div>
+        <div id="block-editors"></div>
+        <button id="btn-add-block" onclick="addBlock()">+ добавить блок</button>
+      </div>
+      <div class="admin-section">
+        <div class="balint-toggle">
+          <div>
+            <div class="admin-title">Балинтовский протокол / инструмент</div>
+            <div class="small-note">Шаги внутри балинт-блока — редактируются как блоки</div>
+          </div>
+          <div class="toggle on" id="balint-toggle" onclick="toggleBalint()"></div>
+        </div>
+        <div id="balint-editors"></div>
+        <button class="btn-add-sub" id="btn-add-balint" onclick="addBalint()">+ добавить шаг</button>
+      </div>
+      <button class="btn btn-primary" onclick="applyAndGo()">Применить и перейти к ведущему →</button>
+      <button class="btn btn-ghost" onclick="resetToDefault()">Сбросить к шаблону «10 сентября»</button>
+    </div>
+  </div>
+
+  <!-- PAGE 3: AUDIENCE -->
+  <div class="page" id="page-audience">
+    <div id="p-stage">
+      <div id="p-block-label">текущий блок</div>
+      <div id="p-block-name">—</div>
+      <div id="p-countdown">00:00</div>
+      <div id="p-bar-wrap"><div id="p-bar"></div></div>
+      <div id="p-hint"></div>
+    </div>
+    <div style="display:flex;gap:8px;padding:0 24px 16px">
+      <button class="ctrl-btn" onclick="prevBlock()" style="flex:1;padding:12px 0;border-radius:8px;font-size:14px;background:#1e1e1e;color:#888;border:none;cursor:pointer">← назад</button>
+      <button onclick="togglePlay()" id="p-btn-play" style="flex:2;padding:12px 0;border-radius:8px;font-size:15px;background:var(--ink);color:var(--bg);border:none;cursor:pointer">▶ старт</button>
+      <button class="ctrl-btn" onclick="nextBlock()" style="flex:1;padding:12px 0;border-radius:8px;font-size:14px;background:#1e1e1e;color:#888;border:none;cursor:pointer">вперёд →</button>
+    </div>
+    <div id="p-footer">
+      <span id="p-elapsed">—</span>
+      <span id="p-clock">—</span>
+    </div>
+  </div>
+</div>
+<div id="warn-flash"></div>
+
+<script>
+const DEFAULT_BLOCKS=[
+  {time:'12:00',name:'Сбор · представление ведущих',dur:3,hint:'Проверить, что все в Zoom. Представить Антона, Романа, Анну.'},
+  {time:'12:03',name:'Рамка и правила',dur:3,hint:'Формат дня: тройки → перерыв → балинт. Конфиденциальность, камеры.'},
+  {time:'12:06',name:'Теория: три тезиса',dur:5,hint:'Три тезиса кратко. Без лекции — это введение в опыт, не объяснение.'},
+  {time:'12:11',name:'Телесная практика',dur:7,hint:'Ведущий ведёт. Медленно. Дать время осесть.'},
+  {time:'12:18',name:'Шеринг: состояние',dur:3,hint:'«Одно слово или образ — как вы сейчас». По кругу, без обсуждения.'},
+  {time:'12:21',name:'Вопросы из интереса — демо',dur:2,hint:'Показать разницу между вопросом из интереса и вопросом-советом.'},
+  {time:'12:23',name:'Вопросы из интереса — пары',dur:3,hint:'Разбить на пары. Один спрашивает, другой отвечает. Меняются.'},
+  {time:'12:26',name:'Шеринг',dur:2,hint:'«Что заметили в себе — как спрашивающий и как отвечающий».'},
+  {time:'12:28',name:'Игра в бисер — правила',dur:2,hint:'Правила тройки: минута каждый, без перебиваний, ведущий держит время.'},
+  {time:'12:30',name:'Тройки А · раунд 1',dur:3,hint:'День, после которого я приезжаю домой пустым. Как он выглядит.\n\nМинута на человека. Стоп — чёткий.'},
+  {time:'12:33',name:'Тройки А · раунд 2',dur:3,hint:'Что меня на самом деле возвращает — и делаю ли я это.\n\nМинута на человека.'},
+  {time:'12:36',name:'Шеринг троек А',dur:3,hint:'«Одним словом — что было общего в вашей тройке». По одному от каждой тройки.'},
+  {time:'12:39',name:'Тройки Б · раунд 1',dur:3,hint:'ПОЛНАЯ ПЕРЕСБОРКА — ни одного из прежней тройки.\n\nМомент, когда мне было трудно и я не пошёл ни к кому. Что меня остановило.'},
+  {time:'12:42',name:'Тройки Б · раунд 2',dur:3,hint:'Кто в отделе, сам того не зная, мне однажды помог.\n\nМинута на человека.'},
+  {time:'12:45',name:'Шеринг · задание на перерыв',dur:3,hint:'Задание: вспомнить рабочую ситуацию, которая не отпускает.\nНе проблему — историю.'},
+  {time:'12:48',name:'Перерыв',dur:10,hint:'10 минут. Вернуться вовремя — начнём ровно в 12:58.'},
+  {time:'12:58',name:'Рамка на балинтовскую группу',dur:10,hint:'Формат балинта:\n— рассказ без перебиваний\n— уточняющие вопросы (только факты)\n— круг чувств\n— круг ассоциаций\n— возврат автора\n— финальное слово ведущего\n\nАвтор выключает камеру и микрофон пока группа говорит.'},
+  {time:'13:08',name:'Балинтовские группы · 6+5+5',dur:148,balint:true,hint:'Три группы параллельно. 23 минуты на человека.\nВ группе из 5 — запас 13 минут на финале.'},
+  {time:'15:36',name:'Финальный круг',dur:15,hint:'«Одно, что я попробую для себя в ближайший месяц».\n\nПо кругу. Без обсуждения. Ведущий завершает последним.'},
+  {time:'15:51',name:'Конец',dur:0,hint:'Сессия завершена.'},
+];
+const DEFAULT_BALINT=[
+  {name:'Рассказ ситуации',note:'без перебиваний',dur:3},
+  {name:'Уточняющие вопросы',note:'только факты',dur:5},
+  {name:'Круг чувств',note:'«что я почувствовал, пока слушал»',dur:5},
+  {name:'Круг ассоциаций',note:'сцена / картина / что чувствует другой',dur:5},
+  {name:'Возврат автора',note:'«что откликнулось» — без спора',dur:3},
+  {name:'Финальное слово ведущего',note:'одна фраза про тему',dur:2},
+];
+
+let BLOCKS=JSON.parse(JSON.stringify(DEFAULT_BLOCKS));
+let BALINT=JSON.parse(JSON.stringify(DEFAULT_BALINT));
+let showBalint=true;
+let sessionTitle='Служба продаж · 10 сентября';
+let promiseMin=16*60;
+let cur=0,playing=false,secsLeft=0,secsTotal=0;
+let warnedAt2=false,warnedAt1=false,balintStep=0,tickId=null;
+
+function totalMins(){return BLOCKS.reduce((s,b)=>s+b.dur,0)}
+
+function showTab(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.getElementById('tbtn-'+id).classList.add('active');
+  if(id==='admin')renderAdminBlocks();
+}
+
+function loadBlock(idx){
+  cur=Math.max(0,Math.min(idx,BLOCKS.length-1));
+  warnedAt2=false;warnedAt1=false;balintStep=0;
+  const b=BLOCKS[cur];
+  secsTotal=b.dur*60;secsLeft=secsTotal;
+  renderFacilitator();
+}
+
+function togglePlay(){if(playing)pause();else play();}
+function play(){
+  playing=true;
+  document.getElementById('btn-playpause').textContent='⏸ пауза';
+  document.getElementById('p-btn-play').textContent='⏸ пауза';
+  if(tickId)clearInterval(tickId);
+  tickId=setInterval(tick,1000);
+}
+function pause(){
+  playing=false;
+  document.getElementById('btn-playpause').textContent='▶ продолжить';
+  document.getElementById('p-btn-play').textContent='▶ продолжить';
+  clearInterval(tickId);
+}
+function tick(){if(secsLeft>0)secsLeft--;renderFacilitator();checkWarn();}
+function prevBlock(){if(cur>0){loadBlock(cur-1);if(playing)play();}}
+function nextBlock(){if(cur<BLOCKS.length-1){loadBlock(cur+1);if(playing)play();}}
+
+function checkWarn(){
+  if(secsLeft===120&&!warnedAt2){warnedAt2=true;flash();}
+  if(secsLeft===60&&!warnedAt1){warnedAt1=true;flash();vibrate();}
+}
+function flash(){const e=document.getElementById('warn-flash');e.classList.add('show');setTimeout(()=>e.classList.remove('show'),600);}
+function vibrate(){if('vibrate' in navigator)navigator.vibrate([200,100,200]);}
+
+function renderFacilitator(){
+  const b=BLOCKS[cur];
+  const m=Math.floor(secsLeft/60),s=secsLeft%60;
+  const warn=secsLeft<=120&&secsLeft>60,urgent=secsLeft<=60;
+  const cd=document.getElementById('countdown');
+  cd.textContent=pad(m)+':'+pad(s);
+  cd.className=urgent?'urgent':warn?'warn':'';
+  const pct=secsTotal>0?(secsTotal-secsLeft)/secsTotal*100:100;
+  const pb=document.getElementById('prog-bar');
+  pb.style.width=pct+'%';
+  pb.className='bar-fill '+(urgent?'bar-red':warn?'bar-yellow':'bar-green');
+  document.getElementById('block-name').textContent=b.name;
+  document.getElementById('hint-box').textContent=b.hint||'—';
+  document.getElementById('time-planned').textContent=b.dur>0?'план: '+b.dur+' мин':'—';
+  document.getElementById('time-elapsed').textContent=fmtSec(secsTotal-secsLeft)+' прошло';
+  const elapsed=calcElapsed(),tot=totalMins();
+  document.getElementById('total-bar').style.width=Math.min(elapsed/tot*100,100)+'%';
+  document.getElementById('total-label').textContent=Math.round(elapsed)+' / '+tot+' мин';
+  updateFinish(elapsed);
+  renderBlockList();
+  renderBalintPanel();
+  syncAudience();
+}
+
+function calcElapsed(){
+  let m=0;for(let i=0;i<cur;i++)m+=BLOCKS[i].dur;
+  return m+(secsTotal-secsLeft)/60;
+}
+
+function updateFinish(elapsed){
+  const now=new Date();
+  const nowMin=now.getHours()*60+now.getMinutes()+now.getSeconds()/60;
+  const left=totalMins()-elapsed;
+  const est=nowMin+left;
+  const delta=Math.round(promiseMin-est);
+  document.getElementById('finish-text').textContent='закончим в '+fmtHM(est);
+  document.getElementById('finish-icon').textContent=Math.abs(delta)<=1?'🟡':delta>0?'🟢':'🔴';
+  const dEl=document.getElementById('finish-delta');
+  if(Math.abs(delta)<=1){dEl.textContent='точно';dEl.className='exact';}
+  else if(delta>0){dEl.textContent='+'+delta+' мин';dEl.className='ahead';}
+  else{dEl.textContent=Math.abs(delta)+' мин';dEl.className='behind';}
+  document.getElementById('btn-promise').textContent='до '+fmtHM(promiseMin);
+  document.getElementById('total-end').textContent='до '+fmtHM(est);
+}
+
+function renderBlockList(){
+  document.getElementById('block-list').innerHTML=BLOCKS.map((b,i)=>{
+    const cls=i<cur?'done':i===cur?'active':'';
+    return '<div class="brow '+cls+'" onclick="jumpTo('+i+')"><span class="bt">'+b.time+'</span><span class="bn">'+esc(b.name)+'</span><span class="bd">'+(b.dur>0?b.dur+'м':'—')+'</span></div>';
+  }).join('');
+  setTimeout(()=>{const e=document.querySelector('.brow.active');if(e)e.scrollIntoView({block:'nearest',behavior:'smooth'});},50);
+}
+
+function renderBalintPanel(){
+  const b=BLOCKS[cur];
+  const panel=document.getElementById('balint-panel');
+  if(!b.balint||!showBalint){panel.className='';return;}
+  panel.className='show';
+  document.getElementById('balint-steps').innerHTML=BALINT.map((s,i)=>{
+    const cls=i<balintStep?'bs-done':i===balintStep?'bs-active':'';
+    return '<div class="bstep '+cls+'" onclick="setBalintStep('+i+')"><span class="bsn">'+(i+1)+'</span><span class="bsname">'+esc(s.name)+'<br><span style="font-size:10px;color:#444">'+esc(s.note)+'</span></span><span class="bsdur">'+s.dur+'м</span></div>';
+  }).join('');
+}
+
+function jumpTo(idx){loadBlock(idx);if(playing)play();}
+function setBalintStep(i){
+  balintStep=i;secsTotal=BALINT[i].dur*60;secsLeft=secsTotal;
+  warnedAt2=false;warnedAt1=false;
+  renderFacilitator();if(playing)play();
+}
+
+function togglePromise(){
+  const p=document.getElementById('promise-panel');
+  if(p.style.display==='block'){p.style.display='none';}
+  else{
+    p.style.display='block';
+    document.getElementById('ph').value=pad(Math.floor(promiseMin/60)%24);
+    document.getElementById('pm').value=pad(promiseMin%60);
+  }
+}
+function applyPromise(){
+  const h=parseInt(document.getElementById('ph').value)||0;
+  const m=parseInt(document.getElementById('pm').value)||0;
+  promiseMin=Math.min(23,h)*60+Math.min(59,m);
+  document.getElementById('promise-panel').style.display='none';
+  renderFacilitator();
+}
+
+function syncAudience(){
+  const b=BLOCKS[cur];
+  const m=Math.floor(secsLeft/60),s=secsLeft%60;
+  const warn=secsLeft<=120&&secsLeft>60,urgent=secsLeft<=60;
+  const cls=urgent?'urgent':warn?'warn':'';
+  document.getElementById('p-block-label').textContent='блок '+(cur+1)+' из '+BLOCKS.length;
+  document.getElementById('p-block-name').textContent=b.name;
+  const pcd=document.getElementById('p-countdown');
+  pcd.textContent=pad(m)+':'+pad(s);pcd.className=cls;
+  const pct=secsTotal>0?(secsTotal-secsLeft)/secsTotal*100:100;
+  const pbar=document.getElementById('p-bar');
+  pbar.style.width=pct+'%';pbar.className=urgent?'urgent':warn?'warn':'';
+  document.getElementById('p-hint').textContent=b.hint||'';
+  document.getElementById('p-elapsed').textContent=Math.round(calcElapsed())+' / '+totalMins()+' мин';
+}
+
+function renderAdminBlocks(){
+  document.getElementById('cfg-title').value=sessionTitle;
+  document.getElementById('cfg-ph').value=pad(Math.floor(promiseMin/60)%24);
+  document.getElementById('cfg-pm').value=pad(promiseMin%60);
+  renderEditorList('block-editors', BLOCKS, makeBlockRow, 'BLOCKS');
+  renderEditorList('balint-editors', BALINT, makeBalintRow, 'BALINT');
+  const bsel=document.getElementById('btn-add-balint');
+  if(bsel)bsel.style.display=showBalint?'block':'none';
+}
+
+function makeBlockRow(b,i){
+  return '<span class="drag-handle" draggable="false">⠿</span>'+
+    '<div class="be-fields">'+
+    '<div class="be-top">'+
+    '<input class="field be-name" value="'+esc(b.name)+'" oninput="BLOCKS['+i+'].name=this.value" placeholder="Название">'+
+    '<input class="field be-dur" type="number" min="0" value="'+b.dur+'" oninput="BLOCKS['+i+'].dur=+this.value" placeholder="мин">'+
+    '</div>'+
+    '<textarea class="field be-hint" oninput="BLOCKS['+i+'].hint=this.value" placeholder="Подсказка для ведущего...">'+esc(b.hint||'')+'</textarea>'+
+    '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink3);cursor:pointer">'+
+    '<input type="checkbox" '+(b.balint?'checked':'')+' onchange="BLOCKS['+i+'].balint=this.checked" style="accent-color:var(--accent)"> балинт-блок</label>'+
+    '</div>'+
+    '<button class="be-del" onclick="deleteBlock('+i+')" title="Удалить">×</button>';
+}
+
+function makeBalintRow(s,i){
+  return '<span class="drag-handle" draggable="false">⠿</span>'+
+    '<div class="be-fields">'+
+    '<div class="be-top">'+
+    '<input class="field be-name" value="'+esc(s.name)+'" oninput="BALINT['+i+'].name=this.value" placeholder="Название шага">'+
+    '<input class="field be-dur" type="number" min="0" value="'+s.dur+'" oninput="BALINT['+i+'].dur=+this.value" placeholder="мин">'+
+    '</div>'+
+    '<input class="field" value="'+esc(s.note)+'" oninput="BALINT['+i+'].note=this.value" placeholder="Примечание / правило">'+
+    '</div>'+
+    '<button class="be-del" onclick="deleteBalint('+i+')" title="Удалить">×</button>';
+}
+
+function renderEditorList(containerId, arr, rowFn, arrName){
+  const container=document.getElementById(containerId);
+  container.innerHTML=arr.map((item,i)=>{
+    return '<div class="block-editor" data-idx="'+i+'" data-arr="'+arrName+'">'+
+      '<div class="be-row">'+
+      '<span class="be-index">'+(i+1)+'</span>'+
+      rowFn(item,i)+
+      '</div></div>';
+  }).join('');
+  initDrag(container, arrName);
+}
+
+// ── DRAG AND DROP ─────────────────────────────────────────────────
+function initDrag(container, arrName){
+  let dragIdx=null, overIdx=null;
+  const arr=arrName==='BLOCKS'?BLOCKS:BALINT;
+
+  container.querySelectorAll('.block-editor').forEach(row=>{
+    const handle=row.querySelector('.drag-handle');
+    const idx=+row.dataset.idx;
+
+    // desktop drag
+    handle.addEventListener('mousedown',()=>{row.draggable=true;});
+    row.addEventListener('dragstart',e=>{
+      dragIdx=idx;row.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+    });
+    row.addEventListener('dragend',()=>{
+      row.draggable=false;row.classList.remove('dragging');
+      container.querySelectorAll('.block-editor').forEach(r=>r.classList.remove('drag-over'));
+      if(dragIdx!==null&&overIdx!==null&&dragIdx!==overIdx){
+        const moved=arr.splice(dragIdx,1)[0];
+        arr.splice(overIdx,0,moved);
+        renderAdminBlocks();
+      }
+      dragIdx=null;overIdx=null;
+    });
+    row.addEventListener('dragover',e=>{
+      e.preventDefault();overIdx=idx;
+      container.querySelectorAll('.block-editor').forEach(r=>r.classList.remove('drag-over'));
+      row.classList.add('drag-over');
+    });
+
+    // touch drag
+    let startY=0,clone=null;
+    handle.addEventListener('touchstart',e=>{
+      dragIdx=idx;startY=e.touches[0].clientY;
+      clone=row.cloneNode(true);
+      clone.style.cssText='position:fixed;left:0;right:0;z-index:999;opacity:.85;pointer-events:none;background:#1e1e1e;border-radius:8px;margin:0 18px;';
+      clone.style.top=(row.getBoundingClientRect().top)+'px';
+      document.body.appendChild(clone);
+      row.classList.add('dragging');
+    },{passive:true});
+    handle.addEventListener('touchmove',e=>{
+      e.preventDefault();
+      const y=e.touches[0].clientY;
+      clone.style.top=(row.getBoundingClientRect().top+(y-startY))+'px';
+      const els=container.querySelectorAll('.block-editor:not(.dragging)');
+      container.querySelectorAll('.block-editor').forEach(r=>r.classList.remove('drag-over'));
+      els.forEach(el=>{
+        const rect=el.getBoundingClientRect();
+        if(y>rect.top&&y<rect.bottom){overIdx=+el.dataset.idx;el.classList.add('drag-over');}
+      });
+    },{passive:false});
+    handle.addEventListener('touchend',()=>{
+      if(clone){clone.remove();clone=null;}
+      row.classList.remove('dragging');
+      container.querySelectorAll('.block-editor').forEach(r=>r.classList.remove('drag-over'));
+      if(dragIdx!==null&&overIdx!==null&&dragIdx!==overIdx){
+        const moved=arr.splice(dragIdx,1)[0];
+        arr.splice(overIdx,0,moved);
+        renderAdminBlocks();
+      }
+      dragIdx=null;overIdx=null;
+    });
+  });
+}
+
+function updateBlock(i,key,val){BLOCKS[i][key]=val;}
+function updateBalint(i,key,val){BALINT[i][key]=val;}
+
+function deleteBlock(i){
+  if(BLOCKS.length>1){BLOCKS.splice(i,1);renderAdminBlocks();}
+}
+function deleteBalint(i){
+  if(BALINT.length>1){BALINT.splice(i,1);renderAdminBlocks();}
+}
+function addBlock(){
+  BLOCKS.push({time:'—',name:'Новый блок',dur:5,hint:''});
+  renderAdminBlocks();
+  setTimeout(()=>{
+    const l=document.querySelector('#block-editors .block-editor:last-child');
+    if(l)l.scrollIntoView({behavior:'smooth',block:'center'});
+  },50);
+}
+function addBalint(){
+  BALINT.push({name:'Новый шаг',note:'',dur:3});
+  renderAdminBlocks();
+  setTimeout(()=>{
+    const l=document.querySelector('#balint-editors .block-editor:last-child');
+    if(l)l.scrollIntoView({behavior:'smooth',block:'center'});
+  },50);
+}
+function applyMeta(){
+  sessionTitle=document.getElementById('cfg-title').value;
+  document.getElementById('session-label').textContent=sessionTitle;
+  const h=parseInt(document.getElementById('cfg-ph').value)||0;
+  const m=parseInt(document.getElementById('cfg-pm').value)||0;
+  promiseMin=Math.min(23,h)*60+Math.min(59,m);
+}
+function toggleBalint(){
+  showBalint=!showBalint;
+  document.getElementById('balint-toggle').className='toggle'+(showBalint?' on':'');
+  document.getElementById('balint-editors').style.display=showBalint?'block':'none';
+}
+function applyAndGo(){
+  let h=parseInt((BLOCKS[0].time||'12:00').split(':')[0])||12;
+  let m=parseInt((BLOCKS[0].time||'12:00').split(':')[1])||0;
+  BLOCKS.forEach(b=>{b.time=pad(h%24)+':'+pad(m);m+=b.dur;h+=Math.floor(m/60);m=m%60;});
+  if(cur>=BLOCKS.length)cur=0;
+  loadBlock(cur);showTab('facilitator');
+}
+function resetToDefault(){
+  BLOCKS=JSON.parse(JSON.stringify(DEFAULT_BLOCKS));
+  BALINT=JSON.parse(JSON.stringify(DEFAULT_BALINT));
+  sessionTitle='Служба продаж · 10 сентября';promiseMin=16*60;
+  renderAdminBlocks();
+}
+
+function tickClock(){
+  const d=new Date();
+  document.getElementById('clock-real').textContent=pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+  document.getElementById('p-clock').textContent=pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+}
+
+function pad(n){return String(Math.max(0,Math.floor(n))).padStart(2,'0');}
+function fmtSec(s){return Math.floor(s/60)+':'+pad(s%60);}
+function fmtHM(totalMin){const h=Math.floor(totalMin/60)%24,m=Math.round(totalMin%60);return pad(h)+':'+pad(m<60?m:59);}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
+
+loadBlock(0);
+document.getElementById('session-label').textContent=sessionTitle;
+setInterval(tickClock,1000);
+</script>
+</body>
+</html>
