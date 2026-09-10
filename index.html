@@ -184,8 +184,22 @@ input,textarea,select{font-family:inherit}
       </div>
       <div id="block-list"></div>
       <div id="balint-panel">
-        <div class="label label-accent" id="balint-panel-title">—</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div class="label label-accent" id="balint-panel-title" style="margin-bottom:0">—</div>
+          <div id="balint-person-badge" style="display:none;font-size:12px;background:rgba(232,213,176,.12);color:var(--accent);border:1px solid rgba(232,213,176,.3);border-radius:5px;padding:3px 10px;font-variant-numeric:tabular-nums">
+            участник <span id="bp-cur">1</span> / <span id="bp-total">6</span>
+          </div>
+        </div>
         <div id="balint-steps"></div>
+        <div id="balint-person-nav" style="display:none;margin-top:10px">
+          <div style="height:3px;background:#222;border-radius:2px;overflow:hidden;margin-bottom:10px">
+            <div id="bp-progress" style="height:100%;background:var(--accent);border-radius:2px;transition:width .4s"></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button onclick="prevPerson()" style="flex:1;padding:9px 0;background:var(--surface2);color:var(--ink2);border:none;border-radius:7px;font-size:13px;cursor:pointer">← предыдущий</button>
+            <button onclick="nextPerson()" id="bp-next-btn" style="flex:2;padding:9px 0;background:var(--accent);color:#1a1714;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer">Следующий участник →</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -220,6 +234,13 @@ input,textarea,select{font-family:inherit}
             <input class="field" id="cfg-balint-name" style="margin-top:6px;font-size:13px" placeholder="Название инструмента" oninput="applyMeta()">
           </div>
           <div class="toggle on" id="balint-toggle" onclick="toggleBalint()"></div>
+        </div>
+        <div class="field-group" style="margin-top:4px">
+          <div class="field-label">Количество участников (кругов)</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <input class="field" id="cfg-balint-count" type="number" min="1" max="20" value="6" style="width:72px;text-align:center;font-size:18px;font-variant-numeric:tabular-nums" oninput="applyMeta()">
+            <span class="small-note">человек · по одному кругу на каждого</span>
+          </div>
         </div>
         <div id="balint-editors"></div>
         <button class="btn-add-sub" id="btn-add-balint" onclick="addBalint()">+ добавить шаг</button>
@@ -288,6 +309,8 @@ let BALINT=JSON.parse(JSON.stringify(DEFAULT_BALINT));
 let showBalint=true;
 let sessionTitle='Служба продаж · 10 сентября';
 let balintToolName='Балинтовский круг · протокол';
+let balintPersonCount=6;
+let balintPerson=1;
 let promiseMin=16*60;
 let cur=0,playing=false,secsLeft=0,secsTotal=0;
 let warnedAt2=false,warnedAt1=false,balintStep=0,tickId=null;
@@ -304,7 +327,7 @@ function showTab(id){
 
 function loadBlock(idx){
   cur=Math.max(0,Math.min(idx,BLOCKS.length-1));
-  warnedAt2=false;warnedAt1=false;balintStep=0;
+  warnedAt2=false;warnedAt1=false;balintStep=0;balintPerson=1;
   const b=BLOCKS[cur];
   secsTotal=b.dur*60;secsLeft=secsTotal;
   renderFacilitator();
@@ -394,10 +417,48 @@ function renderBalintPanel(){
   if(!b.balint||!showBalint){panel.className='';return;}
   panel.className='show';
   document.getElementById('balint-panel-title').textContent=balintToolName||b.name;
+
+  const multi=balintPersonCount>1;
+  document.getElementById('balint-person-badge').style.display=multi?'flex':'none';
+  document.getElementById('balint-person-nav').style.display=multi?'block':'none';
+  if(multi){
+    document.getElementById('bp-cur').textContent=balintPerson;
+    document.getElementById('bp-total').textContent=balintPersonCount;
+    document.getElementById('bp-progress').style.width=((balintPerson-1)/balintPersonCount*100)+'%';
+    const isLast=balintPerson>=balintPersonCount;
+    const nextBtn=document.getElementById('bp-next-btn');
+    nextBtn.textContent=isLast?'✓ Все круги завершены':'Следующий участник →';
+    nextBtn.style.background=isLast?'rgba(74,222,128,.15)':'var(--accent)';
+    nextBtn.style.color=isLast?'var(--green)':'#1a1714';
+  }
+
   document.getElementById('balint-steps').innerHTML=BALINT.map((s,i)=>{
     const cls=i<balintStep?'bs-done':i===balintStep?'bs-active':'';
     return '<div class="bstep '+cls+'" onclick="setBalintStep('+i+')"><span class="bsn">'+(i+1)+'</span><span class="bsname">'+esc(s.name)+'<br><span style="font-size:10px;color:#444">'+esc(s.note)+'</span></span><span class="bsdur">'+s.dur+'м</span></div>';
   }).join('');
+}
+
+function nextPerson(){
+  if(balintPerson<balintPersonCount){
+    balintPerson++;
+    balintStep=0;
+    const firstStep=BALINT[0];
+    secsTotal=firstStep.dur*60;secsLeft=secsTotal;
+    warnedAt2=false;warnedAt1=false;
+    renderFacilitator();
+    if(playing)play();
+  }
+}
+function prevPerson(){
+  if(balintPerson>1){
+    balintPerson--;
+    balintStep=0;
+    const firstStep=BALINT[0];
+    secsTotal=firstStep.dur*60;secsLeft=secsTotal;
+    warnedAt2=false;warnedAt1=false;
+    renderFacilitator();
+    if(playing)play();
+  }
 }
 
 function jumpTo(idx){loadBlock(idx);if(playing)play();}
@@ -445,6 +506,8 @@ function renderAdminBlocks(){
   document.getElementById('cfg-ph').value=pad(Math.floor(promiseMin/60)%24);
   document.getElementById('cfg-pm').value=pad(promiseMin%60);
   document.getElementById('cfg-balint-name').value=balintToolName;
+  const bcc=document.getElementById('cfg-balint-count');
+  if(bcc) bcc.value=balintPersonCount;
   renderEditorList('block-editors', BLOCKS, makeBlockRow, 'BLOCKS');
   renderEditorList('balint-editors', BALINT, makeBalintRow, 'BALINT');
   const bsel=document.getElementById('btn-add-balint');
@@ -588,6 +651,8 @@ function applyMeta(){
   promiseMin=Math.min(23,h)*60+Math.min(59,m);
   const bn=document.getElementById('cfg-balint-name');
   if(bn) balintToolName=bn.value||'Инструмент';
+  const bc=document.getElementById('cfg-balint-count');
+  if(bc) balintPersonCount=Math.max(1,parseInt(bc.value)||1);
 }
 function toggleBalint(){
   showBalint=!showBalint;
@@ -606,6 +671,7 @@ function resetToDefault(){
   BALINT=JSON.parse(JSON.stringify(DEFAULT_BALINT));
   sessionTitle='Служба продаж · 10 сентября';promiseMin=16*60;
   balintToolName='Балинтовский круг · протокол';
+  balintPersonCount=6;balintPerson=1;
   renderAdminBlocks();
 }
 
