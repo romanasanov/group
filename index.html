@@ -101,7 +101,8 @@ input,textarea,select{font-family:inherit}
 .be-del:hover{color:var(--red)}
 .btn-add-sub{background:none;border:1px dashed #333;color:var(--ink3);border-radius:6px;padding:8px;font-size:12px;width:100%;margin-top:6px;cursor:pointer;transition:border-color .15s,color .15s}
 .btn-add-sub:hover{border-color:#555;color:var(--ink)}
-.drag-handle{color:var(--ink3);font-size:16px;cursor:grab;padding:8px 4px;align-self:flex-start;flex:none;margin-top:4px;touch-action:none;user-select:none}
+.drag-handle{color:var(--ink2);font-size:16px;cursor:grab;padding:8px 4px;align-self:flex-start;flex:none;margin-top:4px;touch-action:none;user-select:none}
+.drag-handle:hover{color:var(--ink)}
 .drag-handle:active{cursor:grabbing}
 .block-editor.dragging{opacity:.4;background:var(--surface2)}
 .block-editor.drag-over{border-top:2px solid var(--blue)}
@@ -183,7 +184,7 @@ input,textarea,select{font-family:inherit}
       </div>
       <div id="block-list"></div>
       <div id="balint-panel">
-        <div class="label label-accent">Балинтовский круг · протокол</div>
+        <div class="label label-accent" id="balint-panel-title">—</div>
         <div id="balint-steps"></div>
       </div>
     </div>
@@ -214,9 +215,9 @@ input,textarea,select{font-family:inherit}
       </div>
       <div class="admin-section">
         <div class="balint-toggle">
-          <div>
-            <div class="admin-title">Балинтовский протокол / инструмент</div>
-            <div class="small-note">Шаги внутри балинт-блока — редактируются как блоки</div>
+          <div style="flex:1;margin-right:12px">
+            <div class="admin-title">Инструмент внутри балинт-блока</div>
+            <input class="field" id="cfg-balint-name" style="margin-top:6px;font-size:13px" placeholder="Название инструмента" oninput="applyMeta()">
           </div>
           <div class="toggle on" id="balint-toggle" onclick="toggleBalint()"></div>
         </div>
@@ -286,6 +287,7 @@ let BLOCKS=JSON.parse(JSON.stringify(DEFAULT_BLOCKS));
 let BALINT=JSON.parse(JSON.stringify(DEFAULT_BALINT));
 let showBalint=true;
 let sessionTitle='Служба продаж · 10 сентября';
+let balintToolName='Балинтовский круг · протокол';
 let promiseMin=16*60;
 let cur=0,playing=false,secsLeft=0,secsTotal=0;
 let warnedAt2=false,warnedAt1=false,balintStep=0,tickId=null;
@@ -391,6 +393,7 @@ function renderBalintPanel(){
   const panel=document.getElementById('balint-panel');
   if(!b.balint||!showBalint){panel.className='';return;}
   panel.className='show';
+  document.getElementById('balint-panel-title').textContent=balintToolName||b.name;
   document.getElementById('balint-steps').innerHTML=BALINT.map((s,i)=>{
     const cls=i<balintStep?'bs-done':i===balintStep?'bs-active':'';
     return '<div class="bstep '+cls+'" onclick="setBalintStep('+i+')"><span class="bsn">'+(i+1)+'</span><span class="bsname">'+esc(s.name)+'<br><span style="font-size:10px;color:#444">'+esc(s.note)+'</span></span><span class="bsdur">'+s.dur+'м</span></div>';
@@ -441,6 +444,7 @@ function renderAdminBlocks(){
   document.getElementById('cfg-title').value=sessionTitle;
   document.getElementById('cfg-ph').value=pad(Math.floor(promiseMin/60)%24);
   document.getElementById('cfg-pm').value=pad(promiseMin%60);
+  document.getElementById('cfg-balint-name').value=balintToolName;
   renderEditorList('block-editors', BLOCKS, makeBlockRow, 'BLOCKS');
   renderEditorList('balint-editors', BALINT, makeBalintRow, 'BALINT');
   const bsel=document.getElementById('btn-add-balint');
@@ -582,6 +586,8 @@ function applyMeta(){
   const h=parseInt(document.getElementById('cfg-ph').value)||0;
   const m=parseInt(document.getElementById('cfg-pm').value)||0;
   promiseMin=Math.min(23,h)*60+Math.min(59,m);
+  const bn=document.getElementById('cfg-balint-name');
+  if(bn) balintToolName=bn.value||'Инструмент';
 }
 function toggleBalint(){
   showBalint=!showBalint;
@@ -599,6 +605,7 @@ function resetToDefault(){
   BLOCKS=JSON.parse(JSON.stringify(DEFAULT_BLOCKS));
   BALINT=JSON.parse(JSON.stringify(DEFAULT_BALINT));
   sessionTitle='Служба продаж · 10 сентября';promiseMin=16*60;
+  balintToolName='Балинтовский круг · протокол';
   renderAdminBlocks();
 }
 
