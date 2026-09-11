@@ -117,8 +117,8 @@ button{cursor:pointer;border:none;background:none}
 .drawer-handle-label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);font-weight:500}
 .drawer-handle-icon{font-size:12px;color:var(--ink3);transition:transform .25s}
 .drawer-handle-icon.open{transform:rotate(180deg)}
-.drawer-section{overflow:hidden;transition:max-height .3s ease;max-height:9999px}
-.drawer-section.closed{max-height:0}
+.drawer-section{overflow:hidden;transition:max-height .35s ease}
+.drawer-section.closed{max-height:0!important}
 .drawer-inner{padding:14px 22px 20px;display:flex;flex-direction:column;gap:10px}
 
 /* HINT */
@@ -319,7 +319,7 @@ button{cursor:pointer;border:none;background:none}
       </div>
 
       <!-- BALINT section -->
-      <div id="balint-section-wrap" style="display:none">
+      <div id="balint-section-wrap">
         <div class="drawer-handle" onclick="toggleSection('balint')">
           <span class="drawer-handle-label" id="balint-section-label">Малые группы</span>
           <span class="drawer-handle-icon open" id="dh-balint">▾</span>
@@ -457,8 +457,15 @@ function toggleSection(id){
   sections[id]=!sections[id];
   const ds=document.getElementById('ds-'+id);
   const dh=document.getElementById('dh-'+id);
-  ds.classList.toggle('closed',!sections[id]);
-  if(dh)dh.classList.toggle('open',sections[id]);
+  if(sections[id]){
+    ds.classList.remove('closed');
+    ds.style.maxHeight=ds.scrollHeight+'px';
+    setTimeout(()=>{ if(sections[id]) ds.style.maxHeight=''; },350);
+  } else {
+    ds.style.maxHeight=ds.scrollHeight+'px';
+    requestAnimationFrame(()=>{ ds.classList.add('closed'); ds.style.maxHeight=''; });
+  }
+  if(dh) dh.classList.toggle('open',sections[id]);
 }
 
 // ══ TIMER ══
@@ -572,11 +579,14 @@ function render(){
 
   // balint section visibility
   const bwrap=document.getElementById('balint-section-wrap');
-  bwrap.style.display=(b.balint&&showBalint)?'block':'none';
-  if(b.balint&&showBalint&&sections.balint){
+  const isBalint=b.balint&&showBalint;
+  bwrap.style.visibility=isBalint?'visible':'hidden';
+  bwrap.style.height=isBalint?'auto':'0';
+  bwrap.style.overflow=isBalint?'visible':'hidden';
+  if(isBalint&&sections.balint){
     const ds=document.getElementById('ds-balint');
     ds.classList.remove('closed');
-    document.getElementById('dh-balint').classList.add('open');
+    ds.style.maxHeight='';
   }
 }
 
@@ -880,6 +890,13 @@ function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace
 loadBlock(0,false);
 setInterval(tickClock,1000);
 tickClock();
+// init drawer sections — set open ones to auto height
+requestAnimationFrame(()=>{
+  ['hint','blocks','balint'].forEach(id=>{
+    const ds=document.getElementById('ds-'+id);
+    if(ds && sections[id]) ds.style.maxHeight='none';
+  });
+});
 </script>
 </body>
 </html>
