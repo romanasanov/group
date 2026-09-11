@@ -502,22 +502,16 @@ function tick(){
 // SMART NEXT: inside balint block — go through steps
 function nextAction(){
   const b=BLOCKS[cur];
-  if(b.balint && showBalint && balintPersonCount>1){
-    // inside balint: next step or next person
+  if(b.balint && showBalint && curSteps().length>0){
     if(balintStep < curSteps().length-1){
       setBalintStep(balintStep+1);
-    } else {
+    } else if(balintPersonCount>1 && balintPerson<balintPersonCount){
       nextPerson();
-    }
-  } else if(b.balint && showBalint && curSteps().length>0){
-    // single-person balint: go through steps
-    if(balintStep < curSteps().length-1){
-      setBalintStep(balintStep+1);
     } else {
-      loadBlock(cur+1, true); if(playing) play();
+      if(cur<BLOCKS.length-1){ loadBlock(cur+1,true); if(playing)play(); }
     }
   } else {
-    if(cur<BLOCKS.length-1){ loadBlock(cur+1, true); if(playing) play(); }
+    if(cur<BLOCKS.length-1){ loadBlock(cur+1,true); if(playing)play(); }
   }
 }
 
@@ -578,15 +572,7 @@ function render(){
 
   // balint section visibility
   const bwrap=document.getElementById('balint-section-wrap');
-  const isBalint=b.balint&&showBalint;
-  bwrap.style.visibility=isBalint?'visible':'hidden';
-  bwrap.style.height=isBalint?'auto':'0';
-  bwrap.style.overflow=isBalint?'visible':'hidden';
-  if(isBalint&&sections.balint){
-    const ds=document.getElementById('ds-balint');
-    ds.classList.remove('closed');
-    ds.style.maxHeight='';
-  }
+  if(bwrap) bwrap.style.display='none';
 }
 
 function calcElapsed(){
@@ -610,18 +596,57 @@ function updateFinish(elapsed){
 }
 
 function renderBlockList(){
+  const isBalint=BLOCKS[cur].balint&&showBalint;
   document.getElementById('block-list').innerHTML=BLOCKS.map((b,i)=>{
     const cls=i<cur?'done':i===cur?'active':'';
-    return '<div class="brow '+cls+'" onclick="jumpTo('+i+')">'+
+    let html='<div class="brow '+cls+'" onclick="jumpTo('+i+')">'+
       '<span class="bt">'+b.time+'</span>'+
       '<span class="bn">'+esc(b.name)+'</span>'+
       '<span class="bd">'+(b.dur>0?b.dur+'м':'—')+'</span>'+
       '</div>';
+    if(i===cur&&isBalint) html+='<div id="balint-inline">'+renderBalintHTML()+'</div>';
+    return html;
   }).join('');
   setTimeout(()=>{
     const a=document.querySelector('.brow.active');
     if(a) a.scrollIntoView({block:'nearest',behavior:'smooth'});
   },50);
+}
+
+function renderBalintHTML(){
+  const b=BLOCKS[cur];
+  if(!b||!b.balint) return '';
+  if(!b.steps||b.steps.length===0) b.steps=makeDefaultSteps();
+  const steps=curSteps();
+  const multi=balintPersonCount>1;
+  const isLast=balintPerson>=balintPersonCount;
+  let h='<div style="background:var(--bg2);border-left:3px solid var(--red);margin:2px 0 6px;padding:10px 14px;display:flex;flex-direction:column;gap:8px">';
+  h+='<div style="display:flex;align-items:center;justify-content:space-between">';
+  h+='<div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--red);font-weight:600">'+esc(b.name)+'</div>';
+  if(multi) h+='<div style="font-size:12px;color:var(--red);font-weight:600">'+balintPerson+' / '+balintPersonCount+'</div>';
+  h+='</div>';
+  if(multi){
+    const pct=((balintPerson-1)/balintPersonCount*100).toFixed(1);
+    h+='<div style="height:2px;background:var(--line);border-radius:1px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:var(--red);border-radius:1px"></div></div>';
+  }
+  h+=steps.map((s,i)=>{
+    const done=i<balintStep,active=i===balintStep;
+    return '<div onclick="setBalintStep('+i+')" style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);cursor:pointer;align-items:flex-start">'+
+      '<span style="font-size:11px;color:'+(active?'var(--red)':'var(--ink3)')+';width:16px;flex:none;padding-top:2px;font-weight:'+(active?700:400)+'">'+(i+1)+'</span>'+
+      '<span style="flex:1;font-size:13px;color:'+(active?'var(--ink)':done?'var(--ink3)':'var(--ink2)')+';font-weight:'+(active?700:400)+';text-decoration:'+(done?'line-through':'none')+';line-height:1.3">'+esc(s.name)+
+        (s.note?'<span style="display:block;font-size:11px;color:var(--ink3);font-weight:400;text-decoration:none">'+esc(s.note)+'</span>':'')+
+      '</span>'+
+      '<span style="font-size:11px;color:var(--ink3)">'+s.dur+'м</span>'+
+      '</div>';
+  }).join('');
+  if(multi){
+    h+='<div style="display:flex;gap:8px;margin-top:2px">';
+    h+='<button onclick="prevPerson()" style="flex:1;padding:9px 0;border:1px solid var(--line);font-size:13px;font-weight:500;border-radius:var(--r);background:none;color:var(--ink2);cursor:pointer;font-family:inherit">← пред.</button>';
+    h+='<button onclick="nextPerson()" style="flex:2;padding:9px 0;border:none;font-size:13px;font-weight:600;border-radius:var(--r);background:var(--red);color:var(--cream);cursor:pointer;font-family:inherit">'+(isLast?'✓ Все':'Следующий →')+'</button>';
+    h+='</div>';
+  }
+  h+='</div>';
+  return h;
 }
 
 function renderBalint(){
@@ -672,6 +697,8 @@ function nextPerson(){
     secsTotal=(curSteps()[0]||{dur:0}).dur*60; secsLeft=secsTotal;
     warnedAt2=false; warnedAt1=false;
     flashSwitch(); render(); if(playing) play();
+  } else {
+    if(cur<BLOCKS.length-1){ loadBlock(cur+1,true); if(playing)play(); }
   }
 }
 function prevPerson(){
