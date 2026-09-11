@@ -152,8 +152,7 @@ button{cursor:pointer;border:none;background:none}
 #total-end{font-size:11px;color:var(--ink3);white-space:nowrap}
 
 /* BALINT */
-#balint-panel{display:none;flex-direction:column;gap:8px}
-#balint-panel.show{display:flex}
+#balint-panel{display:flex;flex-direction:column;gap:8px}
 #balint-header{display:flex;align-items:center;justify-content:space-between}
 #balint-title{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);font-weight:600}
 #balint-badge{font-size:12px;background:rgba(139,32,32,.08);color:var(--red);border:1px solid rgba(139,32,32,.2);padding:3px 10px;font-weight:500}
@@ -628,6 +627,10 @@ function renderBlockList(){
 function renderBalint(){
   const b=BLOCKS[cur];
   if(!b.balint||!showBalint) return;
+
+  // ensure steps exist
+  if(!b.steps||b.steps.length===0) b.steps=makeDefaultSteps();
+
   document.getElementById('balint-section-label').textContent=b.name;
   document.getElementById('balint-title').textContent=b.name;
 
@@ -645,13 +648,16 @@ function renderBalint(){
     nb.className=isLast?'done':'';
   }
 
-  document.getElementById('balint-steps').innerHTML=curSteps().map((s,i)=>{
-    const cls=i<balintStep?'bs-done':i===balintStep?'bs-active':'';
-    return '<div class="bstep '+cls+'" onclick="setBalintStep('+i+')">'+
-      '<span class="bsn">'+(i+1)+'</span>'+
-      '<span class="bsname">'+esc(s.name)+'<span class="bsnote">'+esc(s.note)+'</span></span>'+
-      '<span class="bsdur">'+s.dur+'м</span></div>';
-  }).join('');
+  const steps=curSteps();
+  document.getElementById('balint-steps').innerHTML=steps.length>0
+    ? steps.map((s,i)=>{
+        const cls=i<balintStep?'bs-done':i===balintStep?'bs-active':'';
+        return '<div class="bstep '+cls+'" onclick="setBalintStep('+i+')">'+
+          '<span class="bsn">'+(i+1)+'</span>'+
+          '<span class="bsname">'+esc(s.name)+'<span class="bsnote">'+esc(s.note)+'</span></span>'+
+          '<span class="bsdur">'+s.dur+'м</span></div>';
+      }).join('')
+    : '<div style="font-size:13px;color:var(--ink3);padding:8px 0">Шаги не заданы — добавьте их в Настройках</div>';
 }
 
 function jumpTo(idx){loadBlock(idx,true);if(playing)play();}
